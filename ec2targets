@@ -100,7 +100,7 @@ def getByName(instances, regname, results):
 	regex = re.compile(regname)
 	ct = 0
 	
-	print '\n### Instances with who\'s name matches regex {0} ###\n'.format(name)
+	print '\n### Instances with who\'s name matches regex {0} ###\n'.format(regname)
 
 	for i in instances:
 		instance = i.get('instance')
