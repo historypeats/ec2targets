@@ -41,45 +41,132 @@ ENDC = '\033[0m'
 #
 #	Functions
 #
-def getInfo(tagKey, tagValue, results):
-	conn = None
+def getAll(instances):
+	''' Get all instances '''
 
+	ct = 0
+	print '\n### All Instances ###\n'
+
+	for i in instances:
+		instance = i.get('instance')
+		region = i.get('region')
+
+		ct += 1
+		id = instance.id
+		pubIP = instance.ip_address
+		privIP = instance.private_ip_address
+		name = instance.tags['Name']
+
+		print 'Region: {0} - Instance ID: {1} - Public IP: {2} - Private IP: {3} - Name: {4}'.format(region, id, pubIP, privIP, name)
+
+	print '\nTotal: {0} instances'.format(str(ct))
+
+
+def getByTag(instances, tag):
+
+	ct = 0
+
+	key, value = tag.split(':')
+	print '\n### Instances with tag "{0}" and value "{1}" ###\n'.format(key, value)
+	
+	for i in instances:
+		instance = i.get('instance')
+		region = i.get('region')
+
+		if key in instance.tags:
+			if instance.tags[key] == value:
+				ct += 1
+				id = instance.id
+				pubIP = instance.ip_address
+				privIP = instance.private_ip_address
+				name = instance.tags['Name']
+
+				print 'Region: {0} - Instance ID: {1} - Public IP: {2} - Private IP: {3} - Name: {4}'.format(region, id, pubIP, privIP, name)
+	
+	print '\nTotal: {0} instances'.format(str(ct))
+
+
+def getByName(instances, name):
+	''' Get instances that match a particular name tag '''
+
+	regex = re.compile(name)
+	ct = 0
+	print '\n### Instances with who\'s name matches regex {0} ###\n'.format(name)
+
+	for i in instances:
+		instance = i.get('instance')
+		region = i.get('region')
+
+		if 'Name' in instance.tags:
+			if regex.search(instance.tags['Name']):
+				ct += 1
+				id = instance.id
+				pubIP = instance.ip_address
+				privIP = instance.private_ip_address
+				name = instance.tags['Name']
+
+				print 'Region: {0} - Instance ID: {1} - Public IP: {2} - Private IP: {3} - Name: {4}'.format(region, id, pubIP, privIP, name)
+	
+	print '\nTotal: {0} instances'.format(str(ct))
+
+
+def getByRegion(instances, reg):
+	''' Get instances in a particular region '''
+
+	ct = 0
+	print '\n### Instances in region "{0}" ###\n'.format(reg)
+
+	for i in instances:
+		instance = i.get('instance')
+		region = i.get('region')
+
+		if region == reg:
+			ct += 1
+			id = instance.id
+			pubIP = instance.ip_address
+			privIP = instance.private_ip_address
+			name = instance.tags['Name']
+
+			print 'Region: {0} - Instance ID: {1} - Public IP: {2} - Private IP: {3} - Name: {4}'.format(region, id, pubIP, privIP, name)
+
+	print '\nTotal: {0} instances'.format(str(ct))
+
+
+def getInstances():
+	''' Return list of instances '''
+
+	conn = None
+	instances = list()
 	for region in REGIONS:
-		print '[+] Getting Instances from region {0}'.format(region)
 		try:
-			conn = boto.ec2.connect_to_region(region, aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-			
+			print '[+] Getting Instances from region {0}'.format(region)
+			conn = boto.ec2.connect_to_region(region, 
+				aws_access_key_id=AWS_ACCESS_KEY_ID, 
+				aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+
 			if conn:
-				# Build list of instances with tag
-				instances = list()
-				reservations = conn.get_all_instances(filters={'tag:{0}'.format(tagKey) : tagValue})
+				
+				reservations = conn.get_all_instances()
 				if reservations:	
 					for reservation in reservations:
 						for instance in reservation.instances:
-							instances.append(instance)
+							instances.append(dict(region=region, instance=instance))
 
-					for instance in instances:
-						id = instance.id
-						pubIP = instance.ip_address
-						privIP = instance.private_ip_address
-
-						results.append((region, id, pubIP, privIP))
-
-						
-
-			conn.close()
 		except:
 			print FAIL + '[!] Error connecting to region {0}'.format(region) + ENDC
+		finally:
+			if conn:
+				conn.close()
 
-	return results
-
+	return instances
 
 def initArgs():
 	''' Initialize Argparse '''
 
 	parser = argparse.ArgumentParser(description='Gather EC2 Targets')
-	parser.add_argument('tag', help='The tag name', type=str)
-	parser.add_argument('value', help='The tag value', type=str)
+	parser.add_argument('-t', dest='tag', help='Search by tag. Tag argument should be in the form TagName:Value. Example: -t Environment:QA', type=str)
+	parser.add_argument('-n', dest='name', help='Search by name', type=str)
+	parser.add_argument('-r', dest='region', help='Search by region', type=str)
 	parser.add_argument('-o', dest='outfile', help='The output file in CSV format', type=str)
 
 	return parser.parse_args()
@@ -92,29 +179,40 @@ def main():
 	''' Main '''
 
 	args = initArgs()
+	
+	# Check if tag argument is properly formatted
+	if args.tag and ':' not in args.tag:
+		print '[!] Invalid tag argument "{0}"'.format(args.tag)
+
+	# Check that the region exists
+	if args.region and args.region not in REGIONS:
+		print '[!] Invalid region {0}'.format(args.region)
+
 	print '[+] Starting task on {0}'.format(strftime("%m-%d-%Y %I:%M%p", gmtime()))
-	results = list()
 	
-	getInfo(args.tag, args.value, results)
+	# Get all EC2 instances
+	instances = getInstances()
 
-	print '\n### Results ###\n'
+	print '[+] Instances retrieved...'
+	print '\n######################'
+	print '#   Attack Surface   #'
+	print '######################\n'
+
+	# If no options set, get entire attack surface
+	if not args.tag and not args.name and not args.region:
+		getAll(instances)
+
+	# Get by Tag
+	if args.tag:
+		getByTag(instances, args.tag)
 	
-	for result in results:
-		print 'Region: {0} - Instance ID: {1} - Public IP: {2} - Private IP: {3}'.format(result[0], result[1], result[2], result[3])
+	# Get by Name regex
+	if args.name:
+		getByName(instances, args.name)
 
-	if args.outfile:
-		conn = None
-		try:
-			with open(args.outfile, 'w') as fd:
-				for result in results:
-					fd.write('Region, Instance ID, Public IP, Private IP\n')
-					fd.write('{0}, {1}, {2}, {3}\n'.format(result[0], result[1], result[2], result[3]))
-		except:
-			print FAIL + '[!] Error saving results to output file {0}'.format(args.outfile) + ENDC
-
-		finally:
-			if conn:
-				conn.close()
+	# Get by Region
+	if args.region:
+		getByRegion(instances, args.region)
 
 
 
