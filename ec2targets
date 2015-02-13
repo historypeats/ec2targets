@@ -245,7 +245,7 @@ def main():
 				name 	= result.get('name')
 				method 	= result.get('method')
 				filter 	= result.get('filter')
-				fd.write('{0}, {1}, {2}, {3}, {4}, {5}, {6}\n'.format(region, id, pubIP, privIP, name, method, filter))
+				fd.write('{0},{1},{2},{3},{4},{5},{6}\n'.format(region, id, pubIP, privIP, name, method, filter))
 	except:
 		print '[!] Error saving result to file: {0}'.format(args.outfile)
 
