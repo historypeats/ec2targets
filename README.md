@@ -28,16 +28,18 @@ AWS_SECRET_ACCESS_KEY = None
 ```
 ##Usage
 ```bash
-usage: ec2targets [-h] [-o OUTFILE] tag value
+usage: ec2targets [-h] [-t TAG] [-n NAME] [-r REGION] outfile
 
 Gather EC2 Targets
 
 positional arguments:
-  tag         The tag name
-  value       The tag value
+  outfile     The output file in CSV format
 
 optional arguments:
   -h, --help  show this help message and exit
-  -o OUTFILE  The output file in CSV format
-msantillana in ec2targets at C02LM3QVFH04 $
+  -t TAG      Search by tag. Tag argument should be in the form TagName:Value.
+              Example: -t Environment:QA
+  -n NAME     Search by name
+  -r REGION   Search by region
 ```
+Note: If no filter flags (-t, -n, -r) are used, ec2targets will list the attack surface for all EC2 instances.
