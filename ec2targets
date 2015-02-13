@@ -37,14 +37,18 @@ AWS_SECRET_ACCESS_KEY = None
 FAIL = '\033[91m'
 ENDC = '\033[0m'
 
+# Default Output File Name
+DEFAULT_OUTFILE = '{0}.csv'.format(sys.argv[0])
+
 
 #
 #	Functions
 #
-def getAll(instances):
+def getAll(instances, results):
 	''' Get all instances '''
 
 	ct = 0
+	
 	print '\n### All Instances ###\n'
 
 	for i in instances:
@@ -58,15 +62,17 @@ def getAll(instances):
 		name = instance.tags['Name']
 
 		print 'Region: {0} - Instance ID: {1} - Public IP: {2} - Private IP: {3} - Name: {4}'.format(region, id, pubIP, privIP, name)
+		results.append(dict(region=region, id=id, pubIP=pubIP, privIP=privIP, name=name, method='all', filter=None))
 
 	print '\nTotal: {0} instances'.format(str(ct))
 
 
-def getByTag(instances, tag):
+def getByTag(instances, tag, results):
+	''' Get instances filtered by tag '''
 
 	ct = 0
-
 	key, value = tag.split(':')
+	
 	print '\n### Instances with tag "{0}" and value "{1}" ###\n'.format(key, value)
 	
 	for i in instances:
@@ -82,15 +88,18 @@ def getByTag(instances, tag):
 				name = instance.tags['Name']
 
 				print 'Region: {0} - Instance ID: {1} - Public IP: {2} - Private IP: {3} - Name: {4}'.format(region, id, pubIP, privIP, name)
-	
+				
+				results.append(dict(region=region, id=id, pubIP=pubIP, privIP=privIP, name=name, method='tag', filter=tag))
+
 	print '\nTotal: {0} instances'.format(str(ct))
 
 
-def getByName(instances, name):
+def getByName(instances, regname, results):
 	''' Get instances that match a particular name tag '''
 
-	regex = re.compile(name)
+	regex = re.compile(regname)
 	ct = 0
+	
 	print '\n### Instances with who\'s name matches regex {0} ###\n'.format(name)
 
 	for i in instances:
@@ -106,11 +115,13 @@ def getByName(instances, name):
 				name = instance.tags['Name']
 
 				print 'Region: {0} - Instance ID: {1} - Public IP: {2} - Private IP: {3} - Name: {4}'.format(region, id, pubIP, privIP, name)
-	
+				
+				results.append(dict(region=region, id=id, pubIP=pubIP, privIP=privIP, name=name, method='name', filter=regname))
+
 	print '\nTotal: {0} instances'.format(str(ct))
 
 
-def getByRegion(instances, reg):
+def getByRegion(instances, reg, results):
 	''' Get instances in a particular region '''
 
 	ct = 0
@@ -128,6 +139,8 @@ def getByRegion(instances, reg):
 			name = instance.tags['Name']
 
 			print 'Region: {0} - Instance ID: {1} - Public IP: {2} - Private IP: {3} - Name: {4}'.format(region, id, pubIP, privIP, name)
+			
+			results.append(dict(region=region, id=id, pubIP=pubIP, privIP=privIP, name=name, method='region', filter=region))
 
 	print '\nTotal: {0} instances'.format(str(ct))
 
@@ -160,6 +173,7 @@ def getInstances():
 
 	return instances
 
+
 def initArgs():
 	''' Initialize Argparse '''
 
@@ -167,7 +181,7 @@ def initArgs():
 	parser.add_argument('-t', dest='tag', help='Search by tag. Tag argument should be in the form TagName:Value. Example: -t Environment:QA', type=str)
 	parser.add_argument('-n', dest='name', help='Search by name', type=str)
 	parser.add_argument('-r', dest='region', help='Search by region', type=str)
-	parser.add_argument('-o', dest='outfile', help='The output file in CSV format', type=str)
+	parser.add_argument('outfile', help='The output file in CSV format', default=DEFAULT_OUTFILE, type=str)
 
 	return parser.parse_args()
 
@@ -179,14 +193,17 @@ def main():
 	''' Main '''
 
 	args = initArgs()
-	
+	results = list()
+
 	# Check if tag argument is properly formatted
 	if args.tag and ':' not in args.tag:
 		print '[!] Invalid tag argument "{0}"'.format(args.tag)
+		sys.exit(-1)
 
 	# Check that the region exists
 	if args.region and args.region not in REGIONS:
 		print '[!] Invalid region {0}'.format(args.region)
+		sys.exit(-1)
 
 	print '[+] Starting task on {0}'.format(strftime("%m-%d-%Y %I:%M%p", gmtime()))
 	
@@ -200,19 +217,37 @@ def main():
 
 	# If no options set, get entire attack surface
 	if not args.tag and not args.name and not args.region:
-		getAll(instances)
+		getAll(instances, results)
 
 	# Get by Tag
 	if args.tag:
-		getByTag(instances, args.tag)
+		getByTag(instances, args.tag, results)
 	
 	# Get by Name regex
 	if args.name:
-		getByName(instances, args.name)
+		getByName(instances, args.name, results)
 
 	# Get by Region
 	if args.region:
-		getByRegion(instances, args.region)
+		getByRegion(instances, args.region, results)
+
+	try:
+		with open(args.outfile, 'w') as fd:
+			# results.append(dict(region=region, id=id, pubIP=pubIP, privIP=privIP, name=name, method='region', filter=region))
+
+			fd.write('Region, Instance ID, Public IP, Private IP, Name, Method, Filter\n')
+
+			for result in results:
+				region 	= result.get('region')
+				id 		= result.get('id')
+				pubIP 	= result.get('pubIP')
+				privIP 	= result.get('privIP')
+				name 	= result.get('name')
+				method 	= result.get('method')
+				filter 	= result.get('filter')
+				fd.write('{0}, {1}, {2}, {3}, {4}, {5}, {6}\n'.format(region, id, pubIP, privIP, name, method, filter))
+	except:
+		print '[!] Error saving result to file: {0}'.format(args.outfile)
 
 
 
