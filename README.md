@@ -1,5 +1,5 @@
 #EC2 Targets
-This tool is useful when doing an audit/pentest and need to gather public/private IP information for EC2 instances. EC2 Instance information is searched for based on Tags. So let's say you want to pentest/audit the QA environment, you could run the tool like so: ./ec2targets Environment QA, where "Environment" is the tag name and "QA" is the tag value
+This tool is useful when doing an audit/pentest and need to gather public/private IP information for EC2 instances. EC2 Instance information can be searched for based on Tags, Region or Name(name tag). So let's say you want to pentest/audit the QA environment, you could run the tool like so: ./ec2targets -t Environment:QA outfile.txt, where "Environment" is the tag name and "QA" is the tag value.
 
 ##Installation
 1. First download or clone the repo.
